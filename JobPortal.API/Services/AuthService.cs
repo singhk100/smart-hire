@@ -1,9 +1,10 @@
 using System.Linq;
+using AutoMapper;
 
 public class AuthService : IAuthService
 {
     private readonly AppDbContext _context;
-
+    private readonly IMapper _mapper;
     private readonly JwtService _jwtService;
 
     public AuthService(AppDbContext context, IMapper mapper, JwtService jwtService)
@@ -40,13 +41,4 @@ public class AuthService : IAuthService
         return "Registered";
     }
 
-    public string Login(LoginDto dto)
-    {
-        var user = _context.Users.FirstOrDefault(x => x.Email == dto.Email);
-
-        if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.Password_Hash))
-            return "Invalid";
-
-        return "Success";
-    }
 }
