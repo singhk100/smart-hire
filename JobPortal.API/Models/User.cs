@@ -1,3 +1,4 @@
+using JobPortal.API.Enums;
 using System;
 using System.ComponentModel.DataAnnotations;
 
@@ -13,5 +14,5 @@ public class User
 
     public string Password_Hash { get; set; }
 
-    public string Role { get; set; }
+    public UserRole Role { get; set; }
 }

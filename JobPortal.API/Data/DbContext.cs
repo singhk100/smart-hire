@@ -19,7 +19,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Name).HasColumnName("name");
             entity.Property(e => e.Email).HasColumnName("email");
             entity.Property(e => e.Password_Hash).HasColumnName("password_hash");
-            entity.Property(e => e.Role).HasColumnName("role");
+            entity.Property(e => e.Role).HasColumnName("role").HasConversion<string>();
         });
 
         // Jobs table
@@ -31,7 +31,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Description).HasColumnName("description");
             entity.Property(e => e.RecruiterId).HasColumnName("recruiter_id");
 
-            // If you want to map skills_required (Postgres array):
+            // to map skills_required (Postgres array):
             // entity.Property<string[]>("SkillsRequired").HasColumnName("skills_required");
         });
 
@@ -56,7 +56,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.FileUrl).HasColumnName("file_url");
         });
 
-        // If you later add AuditLogs or Notifications entities:
+        // to add AuditLogs or Notifications entities:
         // modelBuilder.Entity<AuditLog>(entity =>
         // {
         //     entity.ToTable("audit_logs");
