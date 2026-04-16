@@ -25,6 +25,7 @@ export class AuthService {
     if (!token) return null;
     try {
       const payload = jwtDecode<JwtPayload>(token);
+      debugger
       return {
         id: payload.nameid,
         email: payload.email,

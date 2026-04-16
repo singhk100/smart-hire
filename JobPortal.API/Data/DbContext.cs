@@ -1,3 +1,4 @@
+using JobPortal.API.Enums;
 using Microsoft.EntityFrameworkCore;
 
 public class AppDbContext : DbContext
@@ -11,6 +12,7 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasPostgresEnum<UserRole>();
         // Users table
         modelBuilder.Entity<User>(entity =>
         {
@@ -19,7 +21,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Name).HasColumnName("name");
             entity.Property(e => e.Email).HasColumnName("email");
             entity.Property(e => e.Password_Hash).HasColumnName("password_hash");
-            entity.Property(e => e.Role).HasColumnName("role").HasConversion<string>();
+            entity.Property(e => e.Role).HasColumnName("role");
         });
 
         // Jobs table

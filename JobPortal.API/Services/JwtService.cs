@@ -18,7 +18,8 @@ public class JwtService
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role.ToString())
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.Name),
+            new Claim("role", user.Role.ToString())
         };
 
         var key = new SymmetricSecurityKey(

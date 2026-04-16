@@ -178,6 +178,7 @@ export class ProfileComponent implements OnInit {
   loading = signal(true);
 
   ngOnInit() {
+    debugger;
     this.userService.getProfile().subscribe({
       next: user => { this.user.set(user); this.loading.set(false); },
       error: () => {
