@@ -1,5 +1,5 @@
 public interface IAuthService
 {
-    string Register(RegisterDto dto);
+    Object Register(RegisterDto dto);
     string Login(LoginDto dto);
 }

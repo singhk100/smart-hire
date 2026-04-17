@@ -24,7 +24,8 @@ public class JobsController : ControllerBase
     public IActionResult Create(CreateJobDto dto)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var result = _service.Create(Guid.Parse(userId), dto);
 
-        return Ok(_service.Create(Guid.Parse(userId), dto));
+        return Ok(new { message = result });
     }
 }

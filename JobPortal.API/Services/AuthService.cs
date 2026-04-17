@@ -24,10 +24,10 @@ public class AuthService : IAuthService
         return _jwtService.GenerateToken(user);
     }
 
-    public string Register(RegisterDto dto)
+    public object Register(RegisterDto dto)
     {
         if (_context.Users.Any(x => x.Email == dto.Email))
-            return "User already exists";
+            return new { message = "User already exists" };
 
         var user = _mapper.Map<User>(dto);
 
@@ -38,7 +38,7 @@ public class AuthService : IAuthService
         _context.Users.Add(user);
         _context.SaveChanges();
 
-        return "Registered";
+        return new { message = "User already exists" };
     }
 
 }

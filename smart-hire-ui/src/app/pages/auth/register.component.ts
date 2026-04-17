@@ -1,3 +1,4 @@
+// src/app/features/register/register.component.ts
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -12,8 +13,6 @@ import { ToastService } from '../../core/services/toast.service';
   template: `
     <div class="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div class="w-full max-w-lg scale-in">
-
-        <!-- Card -->
         <div class="card shadow-xl border-slate-100 p-8">
 
           <!-- Logo -->
@@ -40,6 +39,7 @@ import { ToastService } from '../../core/services/toast.service';
           }
 
           <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-4">
+            <!-- Full name -->
             <div class="form-group">
               <label class="form-label">Full name</label>
               <input formControlName="name" type="text" class="form-input" placeholder="John Doe" autocomplete="name"/>
@@ -48,6 +48,7 @@ import { ToastService } from '../../core/services/toast.service';
               }
             </div>
 
+            <!-- Email -->
             <div class="form-group">
               <label class="form-label">Email address</label>
               <input formControlName="email" type="email" class="form-input" placeholder="you@company.com" autocomplete="email"/>
@@ -56,6 +57,7 @@ import { ToastService } from '../../core/services/toast.service';
               }
             </div>
 
+            <!-- Password -->
             <div class="form-group">
               <label class="form-label">Password</label>
               <div class="relative">
@@ -70,7 +72,7 @@ import { ToastService } from '../../core/services/toast.service';
                     } @else {
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268-2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                     }
                   </svg>
                 </button>
@@ -104,6 +106,7 @@ import { ToastService } from '../../core/services/toast.service';
               }
             </div>
 
+            <!-- Submit -->
             <button type="submit" class="btn-primary w-full py-3 text-base" [disabled]="loading()">
               @if (loading()) {
                 <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -122,16 +125,20 @@ import { ToastService } from '../../core/services/toast.service';
 
           <p class="text-center text-sm text-slate-500 mt-6">
             Already have an account?
-            <a routerLink="/login" class="font-semibold text-indigo-600 hover:text-indigo-700 ml-1 transition-colors">Sign in</a>
+            <a routerLink="/login" 
+              class="font-semibold text-indigo-600 hover:text-indigo-700 ml-1 transition-colors">
+              Sign in
+            </a>
           </p>
+
         </div>
       </div>
     </div>
   `
 })
 export class RegisterComponent {
-  private fb    = inject(FormBuilder);
-  private auth  = inject(AuthService);
+  private fb     = inject(FormBuilder);
+  private auth   = inject(AuthService);
   private router = inject(Router);
   private toast  = inject(ToastService);
 
@@ -152,16 +159,24 @@ export class RegisterComponent {
   showPwd = signal(false);
 
   submit() {
-    if (this.form.invalid) { this.form.markAllAsTouched(); return; }
+    if (this.form.invalid) { 
+      this.form.markAllAsTouched(); 
+      return; 
+    }
+
     this.loading.set(true);
     this.error.set('');
+
     this.auth.register(this.form.value as any).subscribe({
-      next: () => {
+      next: res => {
         this.loading.set(false);
-        this.toast.success('Account created! Please sign in.');
+        this.toast.success(res.message || 'Account created! Please sign in.');
         this.router.navigate(['/login']);
       },
-      error: err => { this.loading.set(false); this.error.set(err.error || 'Registration failed.'); }
+      error: err => {
+        this.loading.set(false);
+        this.error.set(err.error?.message || 'Registration failed.');
+      }
     });
   }
 }

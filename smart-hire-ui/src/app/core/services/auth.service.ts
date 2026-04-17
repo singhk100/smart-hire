@@ -1,3 +1,4 @@
+// src/app/core/services/auth.service.ts
 import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -6,12 +7,14 @@ import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { LoginDto, RegisterDto, User } from '../models/user.model';
 
+// 👇 JwtPayload interface includes both plain and schema-based role claims
 interface JwtPayload {
   nameid: string;
   email: string;
   unique_name: string;
-  role: string;
+  role?: string;
   exp: number;
+  "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -20,17 +23,18 @@ export class AuthService {
   private _token = signal<string | null>(localStorage.getItem(this.TOKEN_KEY));
 
   readonly isLoggedIn = computed(() => !!this._token());
+
   readonly currentUser = computed<User | null>(() => {
+    debugger;
     const token = this._token();
     if (!token) return null;
     try {
       const payload = jwtDecode<JwtPayload>(token);
-      debugger
       return {
         id: payload.nameid,
         email: payload.email,
-        name: payload.unique_name,
-        role: payload.role as User['role']
+        name: payload.unique_name,       
+        role: (payload.role || payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"]) as User['role']
       };
     } catch {
       return null;
@@ -44,14 +48,15 @@ export class AuthService {
   constructor(private http: HttpClient, private router: Router) {}
 
   login(dto: LoginDto) {
-    return this.http.post<{ token: string }>(`${environment.apiUrl}/auth/login`, dto).pipe(
-      tap(res => this.setToken(res.token))
-    );
+    return this.http
+      .post<{ token: string }>(`${environment.apiUrl}/auth/login`, dto)
+      .pipe(tap(res => this.setToken(res.token)));
   }
-
+  
   register(dto: RegisterDto) {
-    return this.http.post<string>(`${environment.apiUrl}/auth/register`, dto);
-  }
+  return this.http.post<{ message: string }>(`${environment.apiUrl}/auth/register`, dto);
+}
+
 
   logout() {
     localStorage.removeItem(this.TOKEN_KEY);
