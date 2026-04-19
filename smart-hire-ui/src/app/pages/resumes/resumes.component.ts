@@ -132,7 +132,16 @@ import { ToastService } from '../../core/services/toast.service';
                   <p class="font-semibold text-slate-800 truncate text-sm">{{ getFileName(resume.fileUrl) }}</p>
                   <p class="text-xs text-slate-400 font-mono mt-0.5">{{ resume.id.slice(0, 12) }}…</p>
                 </div>
-                <span class="badge-open shrink-0">Active</span>
+                <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    class="btn-ghost text-xs py-1.5"
+                    [disabled]="downloadingId() === resume.id"
+                    (click)="download(resume)">
+                    {{ downloadingId() === resume.id ? 'Downloading...' : 'Download' }}
+                  </button>
+                  <span class="badge-open shrink-0">Active</span>
+                </div>
               </div>
             }
           </div>
@@ -148,6 +157,7 @@ export class ResumesComponent implements OnInit {
   resumes = signal<Resume[]>([]);
   loading = signal(true);
   uploading = signal(false);
+  downloadingId = signal('');
   selectedFile = signal<File | null>(null);
   isDragging = signal(false);
 
@@ -180,7 +190,7 @@ export class ResumesComponent implements OnInit {
     this.uploading.set(true);
     this.resumeService.upload(this.selectedFile()!).subscribe({
       next: resume => {
-        this.resumes.update(r => [...r, resume]);
+        this.resumes.set([resume]);
         this.selectedFile.set(null);
         this.uploading.set(false);
         this.toast.success('Resume uploaded successfully!');
@@ -188,6 +198,25 @@ export class ResumesComponent implements OnInit {
       error: err => {
         this.uploading.set(false);
         this.toast.error(err.error || 'Upload failed. Please try again.');
+      }
+    });
+  }
+
+  download(resume: Resume) {
+    this.downloadingId.set(resume.id);
+    this.resumeService.downloadMyResume(resume.id).subscribe({
+      next: blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = this.getFileName(resume.fileUrl) || 'resume';
+        a.click();
+        window.URL.revokeObjectURL(url);
+        this.downloadingId.set('');
+      },
+      error: () => {
+        this.downloadingId.set('');
+        this.toast.error('Failed to download resume');
       }
     });
   }

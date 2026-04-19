@@ -28,4 +28,13 @@ public class JobsController : ControllerBase
 
         return Ok(new { message = result });
     }
+
+    [Authorize(Roles = "recruiter")]
+    [HttpDelete("{jobId:guid}")]
+    public IActionResult Delete(Guid jobId)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var result = _service.Delete(Guid.Parse(userId), jobId);
+        return Ok(new { message = result });
+    }
 }

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, effect } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
@@ -259,6 +259,13 @@ export class DashboardComponent implements OnInit {
   applicationCount = signal(0);
   recentJobs = signal<any[]>([]);
   quickActions = signal<any[]>([]);
+
+  private appsEffect = effect(() => {
+    if (this.auth.isLoggedIn()) {
+      this.appService.getMyApplications()
+        .subscribe(apps => this.applicationCount.set(apps.length));
+    }
+  });
 
   ngOnInit() {
     this.jobService.getAll().subscribe(jobs => {

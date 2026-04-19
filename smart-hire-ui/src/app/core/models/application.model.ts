@@ -3,6 +3,16 @@ export interface Application {
   jobTitle: string;
   status: string;
   score: number;
+  candidateId?: string;
+  candidateName?: string;
+  candidateEmail?: string;
+  resumeId?: string;
+}
+
+export interface CandidateProfile {
+  id: string;
+  name: string;
+  email: string;
 }
 
 export interface ApplyJobDto {
@@ -16,8 +26,8 @@ export interface UpdateApplicationStatusDto {
 }
 
 export const APPLICATION_STATUSES = [
-  'Pending',
-  'Reviewed',
-  'Accepted',
-  'Rejected'
+   'Applied',
+   'Shortlisted',
+   'Rejected',
+   'inprocess'
 ];

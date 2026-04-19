@@ -16,4 +16,8 @@ export class JobService {
   create(dto: CreateJobDto) {
     return this.http.post<Job>(this.base, dto);
   }
+
+  delete(jobId: string) {
+    return this.http.delete<{ message: string }>(`${this.base}/${jobId}`);
+  }
 }

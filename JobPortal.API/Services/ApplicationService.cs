@@ -28,7 +28,7 @@ public class ApplicationService : IApplicationService
             UserId = userId,
             JobId = dto.JobId,
             ResumeId = dto.ResumeId,
-            Status = "applied",
+            Status = ApplicationStatus.applied,
             Score = 0
         };
 
@@ -57,6 +57,48 @@ public class ApplicationService : IApplicationService
         return apps;
     }
 
+    public List<RecruiterApplicationResponseDto> GetRecruiterApplications(Guid recruiterId)
+    {
+        var apps = (from app in _context.Applications
+                    join job in _context.Jobs on app.JobId equals job.Id
+                    join user in _context.Users on app.UserId equals user.Id
+                    where job.RecruiterId == recruiterId
+                    select new RecruiterApplicationResponseDto
+                    {
+                        Id = app.Id,
+                        CandidateId = user.Id,
+                        CandidateName = user.Name,
+                        CandidateEmail = user.Email,
+                        ResumeId = app.ResumeId,
+                        JobTitle = job.Title,
+                        Status = app.Status,
+                        Score = app.Score
+                    }).ToList();
+
+        return apps;
+    }
+
+    public CandidateProfileDto GetCandidateProfileForRecruiter(Guid recruiterId, Guid candidateId)
+    {
+        var hasAccess = (from app in _context.Applications
+                         join job in _context.Jobs on app.JobId equals job.Id
+                         where app.UserId == candidateId && job.RecruiterId == recruiterId
+                         select app.Id).Any();
+
+        if (!hasAccess)
+            return null;
+
+        return _context.Users
+            .Where(u => u.Id == candidateId)
+            .Select(u => new CandidateProfileDto
+            {
+                Id = u.Id,
+                Name = u.Name,
+                Email = u.Email
+            })
+            .FirstOrDefault();
+    }
+
     public string UpdateStatus(UpdateApplicationStatusDto dto)
     {
         var app = _context.Applications
@@ -70,5 +112,19 @@ public class ApplicationService : IApplicationService
         _context.SaveChanges();
 
         return "Status updated";
+    }
+
+    public string DeleteMyApplication(Guid userId, Guid applicationId)
+    {
+        var app = _context.Applications
+            .FirstOrDefault(x => x.Id == applicationId && x.UserId == userId);
+
+        if (app == null)
+            return "Application not found";
+
+        _context.Applications.Remove(app);
+        _context.SaveChanges();
+
+        return "Application removed";
     }
 }

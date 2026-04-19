@@ -2,7 +2,8 @@ import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApplicationService } from '../../core/services/application.service';
-import { Application, APPLICATION_STATUSES } from '../../core/models/application.model';
+import { Application, APPLICATION_STATUSES, CandidateProfile } from '../../core/models/application.model';
+import { ResumeService } from '../../core/services/resume.service';
 import { ToastService } from '../../core/services/toast.service';
 
 const STATUS_STYLE: Record<string, string> = {
@@ -94,11 +95,11 @@ const STATUS_STYLE: Record<string, string> = {
                       <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm text-indigo-700"
                           style="background:linear-gradient(135deg,#eef2ff,#ede9fe)">
-                          {{ app.id.slice(0, 2).toUpperCase() }}
+                          {{ (app.candidateName || app.id).slice(0, 2).toUpperCase() }}
                         </div>
                         <div>
-                          <p class="font-semibold text-slate-800 font-mono text-xs">{{ app.id.slice(0, 12) }}…</p>
-                          <p class="text-xs text-slate-400">Candidate</p>
+                          <p class="font-semibold text-slate-800 text-xs">{{ app.candidateName || 'Candidate' }}</p>
+                          <p class="text-xs text-slate-400">{{ app.candidateEmail || '—' }}</p>
                         </div>
                       </div>
                     </td>
@@ -140,7 +141,20 @@ const STATUS_STYLE: Record<string, string> = {
 
                     <!-- Action -->
                     <td class="px-5 py-4">
-                      <div class="flex items-center gap-2">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          class="btn-ghost text-xs py-1.5"
+                          (click)="viewCandidate(app)">
+                          Profile
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-ghost text-xs py-1.5"
+                          [disabled]="!app.resumeId || downloadingResumeId() === app.id"
+                          (click)="downloadResume(app)">
+                          {{ downloadingResumeId() === app.id ? 'Downloading...' : 'Resume' }}
+                        </button>
                         <select [(ngModel)]="statusUpdates[app.id]" class="form-input py-1.5 text-xs w-32 shrink-0">
                           @for (s of statuses; track s) {
                             <option [value]="s">{{ s }}</option>
@@ -169,11 +183,41 @@ const STATUS_STYLE: Record<string, string> = {
           </div>
         </div>
       }
+
+      @if (profileLoading()) {
+        <div class="fixed inset-0 bg-black/30 z-40 flex items-center justify-center p-4">
+          <div class="card w-full max-w-md text-center">
+            <p class="text-slate-600 text-sm">Loading candidate profile...</p>
+          </div>
+        </div>
+      }
+
+      @if (selectedCandidate(); as c) {
+        <div class="fixed inset-0 bg-black/30 z-40 flex items-center justify-center p-4" (click)="closeCandidate()">
+          <div class="card w-full max-w-md" (click)="$event.stopPropagation()">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-slate-900">Candidate Profile</h3>
+              <button type="button" class="btn-ghost py-1.5 px-2 text-xs" (click)="closeCandidate()">Close</button>
+            </div>
+            <div class="space-y-3 text-sm">
+              <div>
+                <p class="text-slate-500 text-xs">Name</p>
+                <p class="font-semibold text-slate-900">{{ c.name }}</p>
+              </div>
+              <div>
+                <p class="text-slate-500 text-xs">Email</p>
+                <p class="font-semibold text-slate-900">{{ c.email }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `
 })
 export class ManageApplicationsComponent implements OnInit {
   private appService = inject(ApplicationService);
+  private resumeService = inject(ResumeService);
   private toast = inject(ToastService);
 
   applications = signal<Application[]>([]);
@@ -181,6 +225,9 @@ export class ManageApplicationsComponent implements OnInit {
   updating = signal('');
   statuses = APPLICATION_STATUSES;
   statusUpdates: Record<string, string> = {};
+  selectedCandidate = signal<CandidateProfile | null>(null);
+  profileLoading = signal(false);
+  downloadingResumeId = signal('');
 
   stats = computed(() => {
     const apps = this.applications();
@@ -193,7 +240,7 @@ export class ManageApplicationsComponent implements OnInit {
   });
 
   ngOnInit() {
-    this.appService.getMyApplications().subscribe({
+    this.appService.getRecruiterApplications().subscribe({
       next: apps => {
         this.applications.set(apps);
         apps.forEach(a => this.statusUpdates[a.id] = a.status || 'Pending');
@@ -204,7 +251,7 @@ export class ManageApplicationsComponent implements OnInit {
   }
 
   updateStatus(app: Application) {
-    const newStatus = this.statusUpdates[app.id];
+    const newStatus = this.statusUpdates[app.id].toLowerCase();
     if (!newStatus) return;
     this.updating.set(app.id);
     this.appService.updateStatus({ applicationId: app.id, status: newStatus }).subscribe({
@@ -216,6 +263,46 @@ export class ManageApplicationsComponent implements OnInit {
       error: () => {
         this.updating.set('');
         this.toast.error('Failed to update status');
+      }
+    });
+  }
+
+  viewCandidate(app: Application) {
+    if (!app.candidateId) return;
+    this.profileLoading.set(true);
+    this.selectedCandidate.set(null);
+    this.appService.getCandidateProfile(app.candidateId).subscribe({
+      next: candidate => {
+        this.selectedCandidate.set(candidate);
+        this.profileLoading.set(false);
+      },
+      error: () => {
+        this.profileLoading.set(false);
+        this.toast.error('Failed to load candidate profile');
+      }
+    });
+  }
+
+  closeCandidate() {
+    this.selectedCandidate.set(null);
+  }
+
+  downloadResume(app: Application) {
+    if (!app.resumeId) return;
+    this.downloadingResumeId.set(app.id);
+    this.resumeService.downloadCandidateResume(app.resumeId).subscribe({
+      next: blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${(app.candidateName || 'candidate').split(' ').join('_')}-resume`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        this.downloadingResumeId.set('');
+      },
+      error: () => {
+        this.downloadingResumeId.set('');
+        this.toast.error('Failed to download resume');
       }
     });
   }

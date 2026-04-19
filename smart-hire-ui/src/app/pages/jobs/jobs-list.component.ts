@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobService } from '../../core/services/job.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ToastService } from '../../core/services/toast.service';
 import { Job } from '../../core/models/job.model';
 
 @Component({
@@ -136,12 +137,23 @@ import { Job } from '../../core/models/job.model';
                 }
 
                 <!-- CTA -->
-                <a [routerLink]="['/jobs', job.id]" class="btn-primary w-full mt-auto">
-                  View & Apply
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                  </svg>
-                </a>
+                <div class="mt-auto flex gap-2">
+                  <a [routerLink]="['/jobs', job.id]" class="btn-primary flex-1">
+                    View & Apply
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                  </a>
+                  @if (canDeleteJob(job)) {
+                    <button
+                      type="button"
+                      class="btn-ghost text-red-600 border border-red-200 hover:bg-red-50"
+                      [disabled]="deletingJobId() === job.id"
+                      (click)="deleteJob(job)">
+                      {{ deletingJobId() === job.id ? 'Deleting...' : 'Delete' }}
+                    </button>
+                  }
+                </div>
               </div>
             }
           </div>
@@ -153,10 +165,12 @@ import { Job } from '../../core/models/job.model';
 export class JobsListComponent implements OnInit {
   auth = inject(AuthService);
   private jobService = inject(JobService);
+  private toast = inject(ToastService);
 
   jobs = signal<Job[]>([]);
   loading = signal(true);
   error = signal('');
+  deletingJobId = signal<string | null>(null);
   searchQuery = '';
   private _searchSignal = signal('');
 
@@ -183,4 +197,30 @@ export class JobsListComponent implements OnInit {
 
   onSearch(val: string) { this._searchSignal.set(val); }
   clearSearch() { this.searchQuery = ''; this._searchSignal.set(''); }
+
+  canDeleteJob(job: Job) {
+    const currentUserId = this.auth.currentUser()?.id?.toLowerCase();
+    const ownerId = job.recruiterId?.toLowerCase();
+    return this.auth.isRecruiter() && !!currentUserId && !!ownerId && ownerId === currentUserId;
+  }
+
+  deleteJob(job: Job) {
+    if (!this.canDeleteJob(job)) return;
+
+    const ok = window.confirm(`Delete "${job.title}"? This will also remove related applications.`);
+    if (!ok) return;
+
+    this.deletingJobId.set(job.id);
+    this.jobService.delete(job.id).subscribe({
+      next: () => {
+        this.jobs.update(list => list.filter(j => j.id !== job.id));
+        this.toast.success('Job deleted successfully');
+        this.deletingJobId.set(null);
+      },
+      error: () => {
+        this.toast.error('Failed to delete job');
+        this.deletingJobId.set(null);
+      }
+    });
+  }
 }

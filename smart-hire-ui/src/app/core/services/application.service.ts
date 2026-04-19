@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-import { Application, ApplyJobDto, UpdateApplicationStatusDto } from '../models/application.model';
+import { Application, ApplyJobDto, CandidateProfile, UpdateApplicationStatusDto } from '../models/application.model';
 
 @Injectable({ providedIn: 'root' })
 export class ApplicationService {
@@ -17,7 +17,19 @@ export class ApplicationService {
     return this.http.get<Application[]>(`${this.base}/myapplication`);
   }
 
+  getRecruiterApplications() {
+    return this.http.get<Application[]>(`${this.base}/recruiter`);
+  }
+
+  getCandidateProfile(candidateId: string) {
+    return this.http.get<CandidateProfile>(`${this.base}/recruiter/candidates/${candidateId}`);
+  }
+
   updateStatus(dto: UpdateApplicationStatusDto) {
     return this.http.put<Application>(`${this.base}/status`, dto);
+  }
+
+  deleteMyApplication(applicationId: string) {
+    return this.http.delete<string>(`${this.base}/${applicationId}`);
   }
 }

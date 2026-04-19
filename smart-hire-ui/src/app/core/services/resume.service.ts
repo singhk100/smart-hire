@@ -18,4 +18,12 @@ export class ResumeService {
   getMyResumes() {
     return this.http.get<Resume[]>(this.base);
   }
+
+  downloadMyResume(resumeId: string) {
+    return this.http.get(`${this.base}/my/${resumeId}/download`, { responseType: 'blob' });
+  }
+
+  downloadCandidateResume(resumeId: string) {
+    return this.http.get(`${this.base}/recruiter/${resumeId}/download`, { responseType: 'blob' });
+  }
 }

@@ -130,6 +130,15 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
                   [style.background]="getStatusConf(app.status).dot"></span>
                 {{ getStatusConf(app.status).label }}
               </span>
+              @if (isFinalStatus(app.status)) {
+                <button
+                  type="button"
+                  class="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors shrink-0 disabled:opacity-60 disabled:cursor-not-allowed"
+                  [disabled]="removingId() === app.id"
+                  (click)="removeApplication(app.id, app.jobTitle)">
+                  {{ removingId() === app.id ? 'Removing...' : 'Remove' }}
+                </button>
+              }
             </div>
           }
         </div>
@@ -142,6 +151,7 @@ export class MyApplicationsComponent implements OnInit {
 
   applications = signal<Application[]>([]);
   loading = signal(true);
+  removingId = signal<string | null>(null);
 
   pipeline = computed(() => {
     const apps = this.applications();
@@ -167,5 +177,24 @@ export class MyApplicationsComponent implements OnInit {
     if (score >= 75) return '#10b981';
     if (score >= 50) return '#f59e0b';
     return '#ef4444';
+  }
+
+  isFinalStatus(status: string) {
+    const normalized = (status || '').toLowerCase();
+    return normalized === 'accepted' || normalized === 'rejected';
+  }
+
+  removeApplication(applicationId: string, jobTitle: string) {
+    const confirmed = window.confirm(`Remove application for "${jobTitle || 'this job'}"?`);
+    if (!confirmed) return;
+
+    this.removingId.set(applicationId);
+    this.appService.deleteMyApplication(applicationId).subscribe({
+      next: () => {
+        this.applications.update(apps => apps.filter(app => app.id !== applicationId));
+        this.removingId.set(null);
+      },
+      error: () => this.removingId.set(null)
+    });
   }
 }

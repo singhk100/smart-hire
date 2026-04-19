@@ -27,4 +27,20 @@ public class JobService : IJobService
         _context.SaveChanges();
         return job;
     }
+
+    public string Delete(Guid recruiterId, Guid jobId)
+    {
+        var job = _context.Jobs.FirstOrDefault(j => j.Id == jobId && j.RecruiterId == recruiterId);
+        if (job == null)
+            return "Job not found";
+
+        var relatedApplications = _context.Applications.Where(a => a.JobId == jobId).ToList();
+        if (relatedApplications.Count > 0)
+            _context.Applications.RemoveRange(relatedApplications);
+
+        _context.Jobs.Remove(job);
+        _context.SaveChanges();
+
+        return "Job deleted";
+    }
 }

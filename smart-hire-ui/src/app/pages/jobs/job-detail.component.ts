@@ -1,5 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { JobService } from '../../core/services/job.service';
@@ -90,6 +90,15 @@ import { Resume } from '../../core/models/resume.model';
                       Full-time
                     </span>
                   </div>
+                  @if (canDeleteJob(job()!)) {
+                    <button
+                      type="button"
+                      class="btn-ghost mt-4 text-red-600 border border-red-200 hover:bg-red-50"
+                      [disabled]="deleting()"
+                      (click)="deleteJob()">
+                      {{ deleting() ? 'Deleting...' : 'Delete Job' }}
+                    </button>
+                  }
                 </div>
               </div>
             </div>
@@ -220,6 +229,7 @@ export class JobDetailComponent implements OnInit {
   private jobService = inject(JobService);
   private appService = inject(ApplicationService);
   private resumeService = inject(ResumeService);
+  private router = inject(Router);
   private toast = inject(ToastService);
   auth = inject(AuthService);
 
@@ -228,6 +238,7 @@ export class JobDetailComponent implements OnInit {
   loading = signal(true);
   applying = signal(false);
   applied = signal(false);
+  deleting = signal(false);
   applyError = signal('');
   selectedResumeId = '';
 
@@ -258,6 +269,32 @@ export class JobDetailComponent implements OnInit {
         this.applyError.set(msg);
         this.toast.error(msg);
         this.applying.set(false);
+      }
+    });
+  }
+
+  canDeleteJob(job: Job) {
+    const currentUserId = this.auth.currentUser()?.id?.toLowerCase();
+    const ownerId = job.recruiterId?.toLowerCase();
+    return this.auth.isRecruiter() && !!currentUserId && !!ownerId && ownerId === currentUserId;
+  }
+
+  deleteJob() {
+    const currentJob = this.job();
+    if (!currentJob || !this.canDeleteJob(currentJob)) return;
+
+    const ok = window.confirm(`Delete "${currentJob.title}"? This will also remove related applications.`);
+    if (!ok) return;
+
+    this.deleting.set(true);
+    this.jobService.delete(currentJob.id).subscribe({
+      next: () => {
+        this.toast.success('Job deleted successfully');
+        this.router.navigate(['/jobs']);
+      },
+      error: () => {
+        this.toast.error('Failed to delete job');
+        this.deleting.set(false);
       }
     });
   }

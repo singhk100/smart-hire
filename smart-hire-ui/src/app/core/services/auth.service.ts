@@ -1,4 +1,3 @@
-// src/app/core/services/auth.service.ts
 import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -7,33 +6,48 @@ import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { LoginDto, RegisterDto, User } from '../models/user.model';
 
-// 👇 JwtPayload interface includes both plain and schema-based role claims
 interface JwtPayload {
   nameid: string;
+  sub?: string;
   email: string;
   unique_name: string;
   role?: string;
   exp: number;
+  "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"?: string;
   "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"?: string;
+}
+
+export interface AuthResponseDto {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: string;
+  message: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly TOKEN_KEY = 'sh_token';
-  private _token = signal<string | null>(localStorage.getItem(this.TOKEN_KEY));
+  private readonly ACCESS_KEY = 'access_token';
+  private readonly REFRESH_KEY = 'refresh_token';
+  private readonly EXPIRES_KEY = 'expires_at';
+
+  private _token = signal<string | null>(localStorage.getItem(this.ACCESS_KEY));
 
   readonly isLoggedIn = computed(() => !!this._token());
 
   readonly currentUser = computed<User | null>(() => {
-    debugger;
     const token = this._token();
     if (!token) return null;
     try {
       const payload = jwtDecode<JwtPayload>(token);
+      const id =
+        payload.nameid ||
+        payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] ||
+        payload.sub ||
+        '';
       return {
-        id: payload.nameid,
+        id,
         email: payload.email,
-        name: payload.unique_name,       
+        name: payload.unique_name,
         role: (payload.role || payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"]) as User['role']
       };
     } catch {
@@ -49,27 +63,47 @@ export class AuthService {
 
   login(dto: LoginDto) {
     return this.http
-      .post<{ token: string }>(`${environment.apiUrl}/auth/login`, dto)
-      .pipe(tap(res => this.setToken(res.token)));
+      .post<AuthResponseDto>(`${environment.apiUrl}/auth/login`, dto)
+      .pipe(
+        tap(res => this.setTokens(res))
+      );
   }
-  
-  register(dto: RegisterDto) {
-  return this.http.post<{ message: string }>(`${environment.apiUrl}/auth/register`, dto);
-}
 
+  refreshToken() {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    return this.http
+      .post<AuthResponseDto>(`${environment.apiUrl}/auth/refresh`, { refreshToken })
+      .pipe(tap(res => this.setTokens(res)));
+  }
+
+  register(dto: RegisterDto) {
+    return this.http.post<{ message: string }>(`${environment.apiUrl}/auth/register`, dto);
+  }
 
   logout() {
-    localStorage.removeItem(this.TOKEN_KEY);
+    localStorage.removeItem(this.ACCESS_KEY);
+    localStorage.removeItem(this.REFRESH_KEY);
+    localStorage.removeItem(this.EXPIRES_KEY);
     this._token.set(null);
     this.router.navigate(['/login']);
   }
 
-  getToken() {
+  getAccessToken() {
     return this._token();
   }
 
-  private setToken(token: string) {
-    localStorage.setItem(this.TOKEN_KEY, token);
-    this._token.set(token);
+  getRefreshToken() {
+    return localStorage.getItem(this.REFRESH_KEY);
+  }
+
+  private setTokens(res: AuthResponseDto) {
+    localStorage.setItem(this.ACCESS_KEY, res.accessToken);
+    localStorage.setItem(this.REFRESH_KEY, res.refreshToken);
+    localStorage.setItem(this.EXPIRES_KEY, res.expiresAt);
+    this._token.set(res.accessToken);
   }
 }
