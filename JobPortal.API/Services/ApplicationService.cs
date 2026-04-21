@@ -1,23 +1,32 @@
-using System;
-using System.Linq;
-using System.Collections.Generic;
 using AutoMapper;
+using DocumentFormat.OpenXml.Packaging;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using UglyToad.PdfPig;
 
 public class ApplicationService : IApplicationService
 {
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly AppDbContext _context;
     private readonly IMapper _mapper;
+    private readonly IConfiguration ConfigurationManager;
 
-    public ApplicationService(AppDbContext context, IMapper mapper)
+    public ApplicationService(AppDbContext context, IMapper mapper, IHttpClientFactory httpClientFactory, IConfiguration configurationManager)
     {
         _context = context;
         _mapper = mapper;
+        _httpClientFactory = httpClientFactory;
+        ConfigurationManager = configurationManager;
     }
 
-    public string Apply(Guid userId, ApplyJobDto dto)
+    public async Task<string> ApplyAsync(Guid userId, ApplyJobDto dto)
     {
-        var exists = _context.Applications
-            .Any(x => x.UserId == userId && x.JobId == dto.JobId);
+        var exists = await _context.Applications
+            .AnyAsync(x => x.UserId == userId && x.JobId == dto.JobId);
 
         if (exists)
             return "Already applied";
@@ -32,11 +41,12 @@ public class ApplicationService : IApplicationService
             Score = 0
         };
 
-        _context.Applications.Add(application);
-        _context.SaveChanges();
+        await _context.Applications.AddAsync(application);
+        await _context.SaveChangesAsync();
 
         return "Applied successfully";
     }
+
 
     public List<ApplicationResponseDto> GetMyApplications(Guid userId)
     {
@@ -127,4 +137,57 @@ public class ApplicationService : IApplicationService
 
         return "Application removed";
     }
+    private bool TryGetSupabaseConfig(out string url, out string serviceRoleKey, out string bucket)
+    {
+        url = ConfigurationManager["Supabase:Url"] ?? "";
+        serviceRoleKey = ConfigurationManager["Supabase:ServiceRoleKey"] ?? "";
+        bucket = ConfigurationManager["Supabase:ResumeBucket"] ?? "resumes";
+        return !string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(serviceRoleKey);
+    }
+
+    private static string EncodeObjectPath(string objectPath)
+    {
+        return string.Join("/", objectPath
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Select(Uri.EscapeDataString));
+    }
+
+    public async Task<string> DownloadResumeTextAsync(string fileUrl)
+    {
+        if (!TryGetSupabaseConfig(out var supabaseUrl, out var supabaseServiceKey, out var bucket))
+            throw new InvalidOperationException("Supabase config missing.");
+
+        var client = _httpClientFactory.CreateClient();
+        var url = $"{supabaseUrl.TrimEnd('/')}/storage/v1/object/{bucket}/{EncodeObjectPath(fileUrl)}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Add("apikey", supabaseServiceKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", supabaseServiceKey);
+
+        var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        var ext = Path.GetExtension(fileUrl).ToLowerInvariant();
+
+        if (ext == ".pdf")
+        {
+            using var pdf = PdfDocument.Open(new MemoryStream(bytes));
+            var text = string.Join("\n", pdf.GetPages().Select(p => p.Text));
+            return text;
+        }
+        else if (ext == ".docx")
+        {
+            using var doc = WordprocessingDocument.Open(new MemoryStream(bytes), false);
+            return doc.MainDocumentPart.Document.Body.InnerText;
+        }
+        else if (ext == ".doc")
+        {
+            // For .doc, you may need a library like NPOI
+            return "DOC parsing not implemented";
+        }
+
+        return System.Text.Encoding.UTF8.GetString(bytes);
+    }
+
 }
