@@ -24,7 +24,17 @@ public class JobsController : ControllerBase
     public IActionResult Create(CreateJobDto dto)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var result = _service.Create(Guid.Parse(userId), dto);
 
-        return Ok(_service.Create(Guid.Parse(userId), dto));
+        return Ok(new { message = result });
+    }
+
+    [Authorize(Roles = "recruiter")]
+    [HttpDelete("{jobId:guid}")]
+    public IActionResult Delete(Guid jobId)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var result = _service.Delete(Guid.Parse(userId), jobId);
+        return Ok(new { message = result });
     }
 }

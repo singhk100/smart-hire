@@ -1,9 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using JobPortal.API.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 
-public class JwtService
+public class JwtService : IJwtService
 {
     private readonly IConfiguration _config;
 
@@ -18,7 +19,8 @@ public class JwtService
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role)
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.Name),
+            new Claim(ClaimTypes.Role, user.Role.ToString().ToLower())
         };
 
         var key = new SymmetricSecurityKey(

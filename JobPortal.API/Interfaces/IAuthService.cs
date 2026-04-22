@@ -1,5 +1,7 @@
+using JobPortal.API.DTOs;
+
 public interface IAuthService
 {
-    string Register(RegisterDto dto);
-    string Login(LoginDto dto);
+    Object Register(RegisterDto dto);
+    AuthResponseDto Login(LoginDto dto);
 }

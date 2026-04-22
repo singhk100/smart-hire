@@ -1,3 +1,5 @@
+using JobPortal.API.Enums;
+using JobPortal.API.Models;
 using System;
 using System.ComponentModel.DataAnnotations;
 
@@ -13,5 +15,6 @@ public class User
 
     public string Password_Hash { get; set; }
 
-    public string Role { get; set; }
+    public UserRole Role { get; set; }
+    public ICollection<RefreshTokens> RefreshTokens { get; set; } = new List<RefreshTokens>();
 }
